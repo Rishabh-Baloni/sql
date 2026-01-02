@@ -44,11 +44,16 @@ export default function Home() {
   // Practice Mode State
   const [currentQuestionId, setCurrentQuestionId] = useState<number>(1);
   const [practiceFeedback, setPracticeFeedback] = useState<{ isCorrect: boolean; message: string } | null>(null);
+  
+  // AI Explanation State
+  const [aiExplanation, setAiExplanation] = useState<{ explanation: string; correctedQuery: string; bestPractice?: string } | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const runQuery = async () => {
     setLoading(true);
     setError(null);
     setPracticeFeedback(null);
+    setAiExplanation(null); // Reset AI explanation
     setResults([]);
     setColumns([]);
     setHasRun(true);
@@ -83,6 +88,30 @@ export default function Home() {
         // engine.ts returns: { isCorrect, message, userRows, userColumns, expectedRows... }
         setResults(data.userRows || []);
         setColumns(data.userColumns || []);
+
+        // Trigger AI Explanation if incorrect
+        if (!data.isCorrect) {
+          setAiLoading(true);
+          // Non-blocking call to AI
+          fetch('/api/ai/explain', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              questionId: currentQuestionId,
+              userQuery: query,
+              errorMessage: data.message
+            })
+          })
+          .then(res => res.json())
+          .then(aiData => {
+            if (aiData.explanation) {
+              setAiExplanation(aiData);
+            }
+          })
+          .catch(err => console.error('AI Error:', err))
+          .finally(() => setAiLoading(false));
+        }
+
       } else {
         setResults(data.rows || []);
         setColumns(data.columns || []);
@@ -201,22 +230,63 @@ export default function Home() {
         <div className="w-1/2 flex flex-col bg-gray-900">
             {/* Feedback Panel */}
             {mode === 'practice' && practiceFeedback && (
-              <div className={`p-4 border-b ${practiceFeedback.isCorrect ? 'bg-green-900/20 border-green-900' : 'bg-red-900/20 border-red-900'}`}>
-                <div className="flex items-center gap-3">
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-full ${practiceFeedback.isCorrect ? 'bg-green-600' : 'bg-red-600'}`}>
-                    {practiceFeedback.isCorrect ? (
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                    ) : (
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className={`font-bold ${practiceFeedback.isCorrect ? 'text-green-400' : 'text-red-400'}`}>
-                      {practiceFeedback.isCorrect ? 'Correct Answer!' : 'Incorrect Answer'}
-                    </h3>
-                    <p className="text-sm text-gray-300">{practiceFeedback.message}</p>
+              <div className="flex flex-col border-b border-gray-800">
+                {/* Standard Feedback */}
+                <div className={`p-4 ${practiceFeedback.isCorrect ? 'bg-green-900/20 border-green-900' : 'bg-red-900/20 border-red-900'}`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full ${practiceFeedback.isCorrect ? 'bg-green-600' : 'bg-red-600'}`}>
+                      {practiceFeedback.isCorrect ? (
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      ) : (
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                      )}
+                    </div>
+                    <div>
+                      <h3 className={`font-bold ${practiceFeedback.isCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                        {practiceFeedback.isCorrect ? 'Correct Answer!' : 'Incorrect Answer'}
+                      </h3>
+                      <p className="text-sm text-gray-300">{practiceFeedback.message}</p>
+                    </div>
                   </div>
                 </div>
+
+                {/* AI Explanation Layer */}
+                {!practiceFeedback.isCorrect && (
+                  <div className="bg-slate-900/50 p-4 border-t border-gray-800">
+                    {aiLoading ? (
+                      <div className="flex items-center gap-2 text-blue-400 animate-pulse">
+                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24">
+                           <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                         </svg>
+                         <span className="text-sm font-medium">Analyzing error...</span>
+                      </div>
+                    ) : aiExplanation ? (
+                      <div className="space-y-3">
+                         <div className="flex items-start gap-2">
+                            <svg className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <div>
+                                <h4 className="text-blue-400 font-semibold text-sm uppercase tracking-wider mb-1">Why it's wrong</h4>
+                                <p className="text-gray-300 text-sm leading-relaxed">{aiExplanation.explanation}</p>
+                            </div>
+                         </div>
+                         
+                         <div className="bg-black/40 rounded p-3 border border-gray-700/50">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-xs text-gray-500 font-mono">SUGGESTED CORRECTION</span>
+                            </div>
+                            <pre className="text-green-400 text-sm font-mono overflow-x-auto">{aiExplanation.correctedQuery}</pre>
+                         </div>
+
+                         {aiExplanation.bestPractice && (
+                           <div className="flex gap-2 text-xs text-purple-300 bg-purple-900/20 p-2 rounded border border-purple-900/30">
+                              <span className="font-bold">💡 Tip:</span>
+                              {aiExplanation.bestPractice}
+                           </div>
+                         )}
+                      </div>
+                    ) : null}
+                  </div>
+                )}
               </div>
             )}
 
