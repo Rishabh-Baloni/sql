@@ -45,6 +45,39 @@ export default function Home() {
   const [currentQuestionId, setCurrentQuestionId] = useState<number>(1);
   const [practiceFeedback, setPracticeFeedback] = useState<{ isCorrect: boolean; message: string } | null>(null);
   
+  // Phase 4: Learning Intelligence State
+  const [weaknesses, setWeaknesses] = useState<any[]>([]);
+  const [recommendation, setRecommendation] = useState<{ questionId: number; reason: string } | null>(null);
+
+  // Fetch learning profile
+  const fetchProfile = async () => {
+    try {
+      const res = await fetch('/api/learning/profile');
+      if (res.ok) {
+        const data = await res.json();
+        setWeaknesses(data.profile || []);
+        setRecommendation(data.recommendation || null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch profile', err);
+    }
+  };
+
+  // Fetch profile when entering practice mode
+  const toggleMode = (newMode: 'normal' | 'practice') => {
+    setMode(newMode);
+    setQuery(newMode === 'normal' ? 'SELECT * FROM employee;' : '');
+    setResults([]);
+    setHasRun(false);
+    setPracticeFeedback(null);
+    setError(null);
+    setAiExplanation(null);
+    
+    if (newMode === 'practice') {
+      fetchProfile();
+    }
+  };
+
   // AI Explanation State
   const [aiExplanation, setAiExplanation] = useState<{ explanation: string; correctedQuery: string; bestPractice?: string } | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -63,7 +96,7 @@ export default function Home() {
       let body: any = { query };
 
       if (mode === 'practice') {
-        url = '/api/practice/submit';
+        url = '/api/learning/submit';
         body = { query, questionId: currentQuestionId };
       }
 
@@ -88,6 +121,9 @@ export default function Home() {
         // engine.ts returns: { isCorrect, message, userRows, userColumns, expectedRows... }
         setResults(data.userRows || []);
         setColumns(data.userColumns || []);
+
+        // Fetch updated profile after submission to update weak areas and recommendations
+        fetchProfile();
 
         // Trigger AI Explanation if incorrect
         if (!data.isCorrect) {
@@ -195,18 +231,49 @@ export default function Home() {
                        }}
                      >
                        {PRACTICE_QUESTIONS.map(q => (
-                         <option key={q.id} value={q.id}>Problem {q.id}</option>
+                         <option key={q.id} value={q.id}>
+                           Problem {q.id} {recommendation?.questionId === q.id ? '(Recommended)' : ''}
+                         </option>
                        ))}
                      </select>
                   </div>
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-1">{currentQuestion?.title}</h3>
+                <h3 className="text-lg font-semibold text-white mb-1">
+                  {currentQuestion?.title}
+                  {recommendation?.questionId === currentQuestionId && (
+                    <span className="ml-2 bg-blue-600/20 text-blue-400 text-xs px-2 py-0.5 rounded border border-blue-600/30">
+                      Recommended
+                    </span>
+                  )}
+                </h3>
                 <p className="text-gray-400 text-sm leading-relaxed mb-3">{currentQuestion?.description}</p>
                 
-                <div className="bg-gray-800/50 rounded p-2 text-xs font-mono text-gray-500">
+                <div className="bg-gray-800/50 rounded p-2 text-xs font-mono text-gray-500 mb-4">
                   <span className="text-gray-400 font-bold">Schema: </span>
                   employee(emp_id, emp_name, department, salary, manager_id)
                 </div>
+
+                {/* Phase 4: Weak Areas Panel */}
+                {weaknesses.length > 0 && (
+                  <div className="bg-red-900/10 border border-red-900/30 rounded p-3">
+                    <h4 className="text-red-400 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Your Weak Areas
+                    </h4>
+                    <div className="space-y-1">
+                      {weaknesses.slice(0, 3).map((w: any) => (
+                        <div key={w.skillId} className="flex justify-between items-center text-xs">
+                          <span className="text-gray-300">{w.skillName}</span>
+                          <span className="text-red-400 font-mono">
+                            {w.failures}/{w.attempts} failed
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
