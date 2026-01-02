@@ -1,0 +1,240 @@
+You are continuing work on an existing project.
+
+================================================
+MANDATORY CONTEXT (READ VERY CAREFULLY)
+================================================
+
+- Phase 1 to Phase 5 are COMPLETE, VERIFIED, and FROZEN.
+- Phase 5 (Interview Mode) has passed all tests.
+- We are now starting Phase 6.
+
+Create a new branch:
+  phase-6-ai-question-generation
+
+This phase MUST be ADDITIVE ONLY.
+
+❌ You MUST NOT modify, refactor, or rename:
+- SQL execution engine
+- Deterministic evaluator (Phase 2)
+- Practice logic (Phase 2)
+- AI explanation logic (Phase 3)
+- Learning intelligence (Phase 4)
+- Interview mode logic (Phase 5)
+
+If any existing behavior changes → FAIL.
+
+================================================
+PHASE-6 OBJECTIVE
+================================================
+
+Introduce AI-generated SQL questions in a SAFE, VALIDATED, and FAIR way.
+
+AI is allowed to:
+✔ Generate SQL questions
+✔ Generate reference SQL queries
+
+AI is NOT allowed to:
+❌ Evaluate user answers
+❌ Decide correctness
+❌ Influence interview fairness
+❌ Replace deterministic evaluation
+
+Correctness MUST ALWAYS be decided by the SQL engine.
+
+================================================
+CORE DESIGN PRINCIPLE
+================================================
+
+Selection is deterministic.
+Generation is creative.
+
+Weakness is ONE signal — never the only signal.
+
+================================================
+QUESTION SOURCE STRATEGY (IMPORTANT)
+================================================
+
+We use a HYBRID approach.
+
+There must be NO BOTTLENECK such as:
+❌ “AI only generates if DB is empty”
+
+Instead, question source is policy-based.
+
+================================================
+PHASE-6 QUESTION SELECTION POLICIES
+================================================
+
+------------------------------------------------
+1️⃣ PRACTICE MODE — HYBRID & ADAPTIVE
+------------------------------------------------
+
+Question SOURCE:
+- 50% → Stored Question Bank (validated)
+- 50% → Fresh AI-generated question (validated before use)
+
+Skill SELECTION (Phase-6 policy):
+- 40% → Weak skills (from Phase-4 learning profile)
+- 40% → Random / unexplored skills
+- 20% → Strong skills (retention)
+
+Difficulty RULES:
+- Weak skill → Easy or Medium
+- Random skill → Medium
+- Strong skill → Medium or Hard
+
+AI NEVER chooses the skill.
+AI generates ONLY AFTER skill & difficulty are chosen.
+
+------------------------------------------------
+2️⃣ INTERVIEW MODE — STRICT & FAIR
+------------------------------------------------
+
+CRITICAL RULES:
+- Ignore learning profile completely
+- Ignore weaknesses completely
+- Interview must be unpredictable and unbiased
+
+Question SOURCE:
+- 50% → Stored Question Bank
+- 50% → Fresh AI-generated question (validated)
+
+Skill DISTRIBUTION:
+- Exactly 1 question per skill:
+  - Filtering
+  - Aggregation
+  - Joins
+
+Difficulty DISTRIBUTION:
+- Exactly:
+  - 1 Easy
+  - 1 Medium
+  - 1 Hard
+- Order may be randomized
+
+NO AI explanations.
+NO hints.
+NO retries.
+
+------------------------------------------------
+3️⃣ BASELINE MODE (New User / Cold Start)
+------------------------------------------------
+
+Trigger:
+- No learning profile
+- No attempts yet
+
+Behavior:
+- Balanced skill coverage
+- Easy difficulty only
+- Use hybrid source (bank + AI)
+- Weakness MUST NOT be used
+
+================================================
+AI QUESTION GENERATION SERVICE
+================================================
+
+AI must return STRICT JSON ONLY.
+
+Exact required format:
+
+{
+  "skill": "Filtering | Aggregation | Joins",
+  "difficulty": "Easy | Medium | Hard",
+  "problem": "Natural language SQL problem statement",
+  "schema": "employee(emp_id, emp_name, department, salary, manager_id)",
+  "reference_query": "Correct SQL query solving the problem",
+  "expected_columns": ["column1", "column2"]
+}
+
+STRICT RULES:
+- JSON only
+- No markdown
+- No explanation text
+- One question per request
+
+================================================
+VALIDATION PIPELINE (MANDATORY)
+================================================
+
+EVERY AI-generated question MUST pass validation:
+
+1. Execute reference_query on existing SQLite / Postgres DB
+2. Ensure:
+   - Query executes without error
+   - Result is NOT empty
+   - Column names EXACTLY match expected_columns
+3. If validation fails:
+   - Discard question
+   - Retry generation (max 2 attempts)
+4. If still failing:
+   - Fallback to stored question bank
+
+AI output must NEVER be trusted blindly.
+
+================================================
+QUESTION STORAGE (QUESTION BANK)
+================================================
+
+Persist ONLY validated AI questions.
+
+Suggested table:
+- generated_questions
+  - id
+  - skill
+  - difficulty
+  - problem
+  - schema
+  - reference_query
+  - expected_columns
+  - usage_count
+  - created_at
+
+Rules:
+- Do NOT overwrite fixed questions
+- Increment usage_count when served
+- Prefer lower usage_count for interviews
+
+================================================
+INTEGRATION RULES
+================================================
+
+Practice Mode:
+- Uses hybrid source
+- Uses Phase-6 selection policy
+- Uses deterministic evaluator (Phase-2)
+- AI explanation (Phase-3) still applies
+
+Interview Mode:
+- Uses hybrid source
+- Silent evaluation
+- No AI explanation
+- Weakness ignored completely
+
+Normal Mode:
+- NO AI questions
+- Unchanged
+
+================================================
+SAFETY & LIMITS
+================================================
+
+- Rate-limit AI calls
+- Cache generated questions
+- Never expose API keys
+- Never bypass validation
+- Never break previous phases
+
+================================================
+FINAL EXPECTATION
+================================================
+
+After Phase-6:
+- System has unlimited, validated SQL questions
+- No question bottlenecks
+- Practice remains adaptive but not biased
+- Interview remains fair, balanced, and unpredictable
+- AI is controlled, safe, and secondary
+
+DO NOT OVERENGINEER.
+DO NOT BREAK EXISTING PHASES.

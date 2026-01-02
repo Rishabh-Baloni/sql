@@ -8,27 +8,38 @@ import { QUESTIONS } from '@/server/practice/questions';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { query, questionId } = body;
+    const { query, questionId, referenceQuery } = body;
 
     if (!query || !questionId) {
       return NextResponse.json({ error: 'Missing query or questionId' }, { status: 400 });
     }
 
-    const question = QUESTIONS.find(q => q.id === questionId);
-    if (!question) {
-      return NextResponse.json({ error: 'Invalid questionId' }, { status: 404 });
+    // Phase 6: Support AI-generated questions
+    let refQuery = referenceQuery;
+    let question = null;
+
+    // Try to find in bank questions first
+    question = QUESTIONS.find(q => q.id === questionId);
+    
+    if (question) {
+      refQuery = question.referenceQuery;
+    } else if (!refQuery) {
+      return NextResponse.json({ error: 'Invalid questionId or missing referenceQuery' }, { status: 404 });
     }
 
     // 1. Execute Phase 2 Logic (Deterministic Evaluation)
-    const result = evaluateSubmission(query, question.referenceQuery);
+    const result = evaluateSubmission(query, refQuery);
 
-    // 2. Log Attempt (Phase 2 Requirement)
-    logAttempt(questionId, query, result.isCorrect ? 'Correct' : 'Incorrect');
+    // 2. Log Attempt (Phase 2 Requirement) - only for bank questions
+    if (question) {
+      logAttempt(questionId, query, result.isCorrect ? 'Correct' : 'Incorrect');
+    }
 
-    // 3. Update Learning Profile (Phase 4 Requirement)
-    // We do this synchronously here, but could be async.
-    // We need the error message if incorrect.
-    updateProfileAfterSubmission(questionId, query, result.isCorrect, result.message);
+    // 3. Update Learning Profile (Phase 4 Requirement) - only for bank questions
+    // AI questions don't map to existing QUESTION_SKILLS yet
+    if (question) {
+      updateProfileAfterSubmission(questionId, query, result.isCorrect, result.message);
+    }
 
     return NextResponse.json(result);
 
@@ -36,3 +47,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
