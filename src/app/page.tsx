@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { QUESTIONS, Question } from '@/server/practice/questions';
 
@@ -33,7 +33,7 @@ const PRACTICE_QUESTIONS = [
 ];
 
 export default function Home() {
-  const [mode, setMode] = useState<'normal' | 'practice'>('normal');
+  const [mode, setMode] = useState<'normal' | 'practice' | 'interview'>('normal');
   const [query, setQuery] = useState('SELECT * FROM employee;');
   const [results, setResults] = useState<any[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
@@ -48,6 +48,41 @@ export default function Home() {
   // Phase 4: Learning Intelligence State
   const [weaknesses, setWeaknesses] = useState<any[]>([]);
   const [recommendation, setRecommendation] = useState<{ questionId: number; reason: string } | null>(null);
+
+  // Phase 5: Interview Mode State
+  const [interviewStatus, setInterviewStatus] = useState<'idle' | 'active' | 'finished'>('idle');
+  const [timeLeft, setTimeLeft] = useState(15 * 60); // 15 minutes
+  const [interviewResults, setInterviewResults] = useState<any[]>([]);
+  const [interviewQuestionIndex, setInterviewQuestionIndex] = useState(0);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (mode === 'interview' && interviewStatus === 'active' && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft((prev) => prev - 1);
+      }, 1000);
+    } else if (timeLeft === 0 && interviewStatus === 'active') {
+      setInterviewStatus('finished');
+    }
+    return () => clearInterval(timer);
+  }, [mode, interviewStatus, timeLeft]);
+
+  const startInterview = () => {
+    setInterviewStatus('active');
+    setInterviewQuestionIndex(0);
+    setCurrentQuestionId(PRACTICE_QUESTIONS[0].id);
+    setTimeLeft(15 * 60);
+    setInterviewResults([]);
+    setQuery('');
+    setResults([]);
+    setHasRun(false);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Fetch learning profile
   const fetchProfile = async () => {
@@ -64,7 +99,7 @@ export default function Home() {
   };
 
   // Fetch profile when entering practice mode
-  const toggleMode = (newMode: 'normal' | 'practice') => {
+  const toggleMode = (newMode: 'normal' | 'practice' | 'interview') => {
     setMode(newMode);
     setQuery(newMode === 'normal' ? 'SELECT * FROM employee;' : '');
     setResults([]);
@@ -75,6 +110,11 @@ export default function Home() {
     
     if (newMode === 'practice') {
       fetchProfile();
+    }
+    if (newMode === 'interview') {
+      setInterviewStatus('idle');
+      setInterviewResults([]);
+      setTimeLeft(15 * 60);
     }
   };
 
@@ -97,6 +137,9 @@ export default function Home() {
 
       if (mode === 'practice') {
         url = '/api/learning/submit';
+        body = { query, questionId: currentQuestionId };
+      } else if (mode === 'interview') {
+        url = '/api/interview/submit';
         body = { query, questionId: currentQuestionId };
       }
 
@@ -148,6 +191,29 @@ export default function Home() {
           .finally(() => setAiLoading(false));
         }
 
+      } else if (mode === 'interview') {
+         // Store result internally
+         const newResult = {
+           questionId: currentQuestionId,
+           questionTitle: currentQuestion?.title,
+           isCorrect: data.isCorrect,
+           message: data.message,
+           query: query
+         };
+         const updatedResults = [...interviewResults, newResult];
+         setInterviewResults(updatedResults);
+         
+         // Move to next question or finish
+         const nextIndex = interviewQuestionIndex + 1;
+         if (nextIndex < PRACTICE_QUESTIONS.length) {
+            setInterviewQuestionIndex(nextIndex);
+            setCurrentQuestionId(PRACTICE_QUESTIONS[nextIndex].id);
+            setQuery('');
+            setResults([]); 
+            setHasRun(false);
+         } else {
+            setInterviewStatus('finished');
+         }
       } else {
         setResults(data.rows || []);
         setColumns(data.columns || []);
@@ -176,16 +242,22 @@ export default function Home() {
            {/* Mode Toggle */}
            <div className="flex bg-gray-800 rounded-lg p-1 ml-4">
              <button
-               onClick={() => { setMode('normal'); setQuery('SELECT * FROM employee;'); setResults([]); setHasRun(false); setPracticeFeedback(null); }}
+               onClick={() => toggleMode('normal')}
                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${mode === 'normal' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
              >
                Normal
              </button>
              <button
-               onClick={() => { setMode('practice'); setQuery(''); setResults([]); setHasRun(false); setPracticeFeedback(null); }}
+               onClick={() => toggleMode('practice')}
                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${mode === 'practice' ? 'bg-purple-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
              >
                Practice
+             </button>
+             <button
+               onClick={() => toggleMode('interview')}
+               className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${mode === 'interview' ? 'bg-orange-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+             >
+               Interview
              </button>
            </div>
         </div>
@@ -193,11 +265,11 @@ export default function Home() {
         <div className="space-x-3">
             <button 
                 onClick={runQuery} 
-                disabled={loading}
-                className={`${mode === 'practice' ? 'bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800' : 'bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800'} disabled:cursor-not-allowed px-4 py-2 rounded text-sm font-semibold transition-colors flex items-center gap-2 text-white`}
+                disabled={loading || (mode === 'interview' && interviewStatus !== 'active')}
+                className={`${mode === 'practice' ? 'bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800' : mode === 'interview' ? 'bg-orange-600 hover:bg-orange-700 disabled:bg-orange-800' : 'bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800'} disabled:cursor-not-allowed px-4 py-2 rounded text-sm font-semibold transition-colors flex items-center gap-2 text-white`}
             >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                {loading ? 'Running...' : (mode === 'practice' ? 'Submit Answer' : 'Run Query')}
+                {loading ? 'Running...' : (mode === 'practice' || mode === 'interview' ? 'Submit Answer' : 'Run Query')}
             </button>
              <button 
                 onClick={() => setQuery('')} 
@@ -277,6 +349,62 @@ export default function Home() {
               </div>
             )}
 
+            {/* Interview Mode Panel */}
+            {mode === 'interview' && (
+              <div className="bg-gray-900 border-b border-gray-800 p-6 flex flex-col items-center justify-center min-h-[200px] text-center">
+                 {interviewStatus === 'idle' && (
+                    <div className="space-y-4">
+                       <h2 className="text-2xl font-bold text-white">SQL Interview Simulation</h2>
+                       <p className="text-gray-400 text-sm max-w-md">
+                          You will have 15 minutes to solve 3 SQL problems. 
+                          No immediate feedback. No retries. 
+                          Results will be shown at the end.
+                       </p>
+                       <button 
+                         onClick={startInterview}
+                         className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded font-bold transition-colors"
+                       >
+                         Start Interview
+                       </button>
+                    </div>
+                 )}
+
+                 {interviewStatus === 'active' && (
+                    <div className="w-full text-left">
+                        <div className="flex justify-between items-center mb-4 border-b border-gray-800 pb-2">
+                           <h2 className="text-orange-400 font-bold text-sm uppercase tracking-wider">
+                              Question {interviewQuestionIndex + 1} of {PRACTICE_QUESTIONS.length}
+                           </h2>
+                           <div className={`font-mono font-bold text-lg ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-gray-300'}`}>
+                              {formatTime(timeLeft)}
+                           </div>
+                        </div>
+                        
+                        <h3 className="text-lg font-semibold text-white mb-2">{currentQuestion?.title}</h3>
+                        <p className="text-gray-400 text-sm leading-relaxed mb-4">{currentQuestion?.description}</p>
+                         <div className="bg-gray-800/50 rounded p-2 text-xs font-mono text-gray-500">
+                           <span className="text-gray-400 font-bold">Schema: </span>
+                           employee(emp_id, emp_name, department, salary, manager_id)
+                         </div>
+                    </div>
+                 )}
+
+                 {interviewStatus === 'finished' && (
+                    <div className="space-y-4">
+                       <h2 className="text-2xl font-bold text-white">Interview Completed</h2>
+                       <p className="text-gray-400 text-sm">See your results on the right.</p>
+                       <button 
+                         onClick={() => toggleMode('interview')}
+                         className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+                       >
+                         Restart Interview
+                       </button>
+                    </div>
+                 )}
+              </div>
+            )}
+
+            {(mode !== 'interview' || interviewStatus === 'active') ? (
             <Editor
                 height="100%"
                 defaultLanguage="sql"
@@ -291,6 +419,11 @@ export default function Home() {
                     fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
                 }}
             />
+            ) : (
+                <div className="flex-1 bg-[#1e1e1e] flex items-center justify-center text-gray-600 text-sm">
+                   {interviewStatus === 'idle' ? 'Press Start to begin.' : 'Interview Finished.'}
+                </div>
+            )}
         </div>
 
         {/* Right: Results */}
@@ -357,7 +490,59 @@ export default function Home() {
               </div>
             )}
 
-            {error ? (
+            {/* Interview Summary Panel */}
+            {mode === 'interview' && interviewStatus === 'finished' ? (
+               <div className="flex-1 overflow-auto p-6 space-y-6">
+                  <h2 className="text-2xl font-bold text-white mb-4">Interview Results</h2>
+                  
+                  {/* Score Card */}
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className="bg-gray-800 p-4 rounded text-center">
+                        <div className="text-gray-400 text-sm uppercase">Total Score</div>
+                        <div className="text-4xl font-bold text-white mt-1">
+                           {interviewResults.filter(r => r.isCorrect).length} <span className="text-gray-500 text-lg">/ {PRACTICE_QUESTIONS.length}</span>
+                        </div>
+                     </div>
+                     <div className="bg-gray-800 p-4 rounded text-center">
+                        <div className="text-gray-400 text-sm uppercase">Time Used</div>
+                        <div className="text-4xl font-bold text-white mt-1">
+                           {formatTime((15 * 60) - timeLeft)}
+                        </div>
+                     </div>
+                  </div>
+
+                  {/* Question Breakdown */}
+                  <div className="space-y-3">
+                     <h3 className="text-lg font-semibold text-gray-300">Question Breakdown</h3>
+                     {interviewResults.map((r, i) => (
+                        <div key={i} className={`p-4 rounded border ${r.isCorrect ? 'bg-green-900/10 border-green-900' : 'bg-red-900/10 border-red-900'}`}>
+                           <div className="flex justify-between items-start mb-2">
+                              <h4 className="font-bold text-white">Q{i+1}: {r.questionTitle}</h4>
+                              <span className={`px-2 py-0.5 rounded text-xs font-bold ${r.isCorrect ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}`}>
+                                 {r.isCorrect ? 'PASS' : 'FAIL'}
+                              </span>
+                           </div>
+                           {!r.isCorrect && (
+                              <div className="text-sm text-red-400 mt-2 font-mono bg-black/20 p-2 rounded">
+                                 {r.message}
+                              </div>
+                           )}
+                           <div className="mt-2 text-xs text-gray-500 font-mono">
+                              Your Query: <span className="text-gray-400">{r.query}</span>
+                           </div>
+                        </div>
+                     ))}
+                  </div>
+               </div>
+            ) : mode === 'interview' && interviewStatus === 'active' ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-8 text-center">
+                   <div className="text-gray-400">
+                      <svg className="w-12 h-12 mx-auto mb-3 text-orange-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                      <p>Results are hidden during interview mode.</p>
+                      <p className="text-sm mt-2">Focus on your next query.</p>
+                   </div>
+                </div>
+            ) : error ? (
                 <div className="p-6">
                     <div className="p-4 bg-red-900/20 border border-red-500/50 text-red-200 rounded-lg flex gap-3 items-start">
                         <svg className="w-5 h-5 text-red-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
