@@ -1,0 +1,482 @@
+[
+  {
+    "title": "High Earners",
+    "description": "List all employees earning more than 60000. Return all columns.",
+    "skill": "Filtering",
+    "difficulty": "Easy",
+    "reference_query": "SELECT emp_id, emp_name, department, salary, manager_id FROM employee WHERE salary > 60000;",
+    "expected_columns": ["emp_id","emp_name","department","salary","manager_id"]
+  },
+  {
+    "title": "HR Employees",
+    "description": "List names of employees working in the HR department.",
+    "skill": "Filtering",
+    "difficulty": "Easy",
+    "reference_query": "SELECT emp_name FROM employee WHERE department = 'HR';",
+    "expected_columns": ["emp_name"]
+  },
+  {
+    "title": "Engineering Employees",
+    "description": "List all employees working in the Engineering department.",
+    "skill": "Filtering",
+    "difficulty": "Easy",
+    "reference_query": "SELECT emp_id, emp_name FROM employee WHERE department = 'Engineering';",
+    "expected_columns": ["emp_id","emp_name"]
+  },
+  {
+    "title": "Employees Without Manager",
+    "description": "List employees who do not have a manager.",
+    "skill": "Filtering",
+    "difficulty": "Easy",
+    "reference_query": "SELECT emp_name FROM employee WHERE manager_id IS NULL;",
+    "expected_columns": ["emp_name"]
+  },
+  {
+    "title": "Low Salary Employees",
+    "description": "List employees earning less than 60000.",
+    "skill": "Filtering",
+    "difficulty": "Easy",
+    "reference_query": "SELECT emp_name, salary FROM employee WHERE salary < 60000;",
+    "expected_columns": ["emp_name","salary"]
+  },
+  {
+    "title": "Sales Department",
+    "description": "List all employees from the Sales department.",
+    "skill": "Filtering",
+    "difficulty": "Easy",
+    "reference_query": "SELECT emp_id, emp_name FROM employee WHERE department = 'Sales';",
+    "expected_columns": ["emp_id","emp_name"]
+  },
+  {
+    "title": "Managers Only",
+    "description": "List employees who are managers (have at least one subordinate).",
+    "skill": "Filtering",
+    "difficulty": "Easy",
+    "reference_query": "SELECT DISTINCT m.emp_name FROM employee e JOIN employee m ON e.manager_id = m.emp_id;",
+    "expected_columns": ["emp_name"]
+  },
+  {
+    "title": "Exact Salary",
+    "description": "List employees earning exactly 60000.",
+    "skill": "Filtering",
+    "difficulty": "Easy",
+    "reference_query": "SELECT emp_name FROM employee WHERE salary = 60000;",
+    "expected_columns": ["emp_name"]
+  },
+  {
+    "title": "Salary Range",
+    "description": "List employees earning between 60000 and 80000 inclusive.",
+    "skill": "Filtering",
+    "difficulty": "Medium",
+    "reference_query": "SELECT emp_name, salary FROM employee WHERE salary BETWEEN 60000 AND 80000;",
+    "expected_columns": ["emp_name","salary"]
+  },
+  {
+    "title": "Engineering High Earners",
+    "description": "List employees from Engineering earning more than 80000.",
+    "skill": "Filtering",
+    "difficulty": "Medium",
+    "reference_query": "SELECT emp_name FROM employee WHERE department='Engineering' AND salary>80000;",
+    "expected_columns": ["emp_name"]
+  },
+  {
+    "title": "Non-HR Employees",
+    "description": "List employees not working in HR.",
+    "skill": "Filtering",
+    "difficulty": "Medium",
+    "reference_query": "SELECT emp_name FROM employee WHERE department <> 'HR';",
+    "expected_columns": ["emp_name"]
+  },
+  {
+    "title": "Employees With Manager",
+    "description": "List employees who have a manager assigned.",
+    "skill": "Filtering",
+    "difficulty": "Medium",
+    "reference_query": "SELECT emp_name FROM employee WHERE manager_id IS NOT NULL;",
+    "expected_columns": ["emp_name"]
+  },
+  {
+    "title": "High Paid Non-Managers",
+    "description": "List employees earning more than 70000 who are not managers.",
+    "skill": "Filtering",
+    "difficulty": "Medium",
+    "reference_query": "SELECT emp_name FROM employee WHERE salary>70000 AND manager_id IS NOT NULL;",
+    "expected_columns": ["emp_name"]
+  },
+  {
+    "title": "Marketing Salary Filter",
+    "description": "List Marketing employees earning at least 70000.",
+    "skill": "Filtering",
+    "difficulty": "Medium",
+    "reference_query": "SELECT emp_name, salary FROM employee WHERE department='Marketing' AND salary>=70000;",
+    "expected_columns": ["emp_name","salary"]
+  },
+  {
+    "title": "Above Average Salary",
+    "description": "List employees earning more than the average salary.",
+    "skill": "Filtering",
+    "difficulty": "Medium",
+    "reference_query": "SELECT emp_name, salary FROM employee WHERE salary > (SELECT AVG(salary) FROM employee);",
+    "expected_columns": ["emp_name","salary"]
+  },
+  {
+    "title": "Department Average Filter",
+    "description": "List employees earning more than the average salary of their department.",
+    "skill": "Filtering",
+    "difficulty": "Hard",
+    "reference_query": "SELECT emp_name, department, salary FROM employee e WHERE salary > (SELECT AVG(salary) FROM employee WHERE department = e.department);",
+    "expected_columns": ["emp_name","department","salary"]
+  },
+  {
+    "title": "Top 2 Salaries",
+    "description": "List employees earning one of the top two distinct salaries.",
+    "skill": "Filtering",
+    "difficulty": "Hard",
+    "reference_query": "SELECT emp_name, salary FROM employee WHERE salary IN (SELECT DISTINCT salary FROM employee ORDER BY salary DESC LIMIT 2);",
+    "expected_columns": ["emp_name","salary"]
+  },
+  {
+    "title": "Department Max Earners",
+    "description": "List employees earning the maximum salary in their department.",
+    "skill": "Filtering",
+    "difficulty": "Hard",
+    "reference_query": "SELECT emp_name, department FROM employee e WHERE salary = (SELECT MAX(salary) FROM employee WHERE department=e.department);",
+    "expected_columns": ["emp_name","department"]
+  },
+  {
+    "title": "No Subordinates",
+    "description": "List employees who do not manage anyone.",
+    "skill": "Filtering",
+    "difficulty": "Hard",
+    "reference_query": "SELECT emp_name FROM employee WHERE emp_id NOT IN (SELECT DISTINCT manager_id FROM employee WHERE manager_id IS NOT NULL);",
+    "expected_columns": ["emp_name"]
+  },
+  {
+    "title": "Salary Rank Top Half",
+    "description": "List employees earning more than the median salary.",
+    "skill": "Filtering",
+    "difficulty": "Hard",
+    "reference_query": "SELECT emp_name, salary FROM employee WHERE salary > (SELECT AVG(salary) FROM (SELECT salary FROM employee ORDER BY salary LIMIT 4 OFFSET 2));",
+    "expected_columns": ["emp_name","salary"]
+  },
+  {
+    "title": "Employee Count",
+    "description": "Find the total number of employees.",
+    "skill": "Aggregation",
+    "difficulty": "Easy",
+    "reference_query": "SELECT COUNT(*) AS emp_count FROM employee;",
+    "expected_columns": ["emp_count"]
+  },
+  {
+    "title": "Average Salary",
+    "description": "Find the average salary of all employees.",
+    "skill": "Aggregation",
+    "difficulty": "Easy",
+    "reference_query": "SELECT AVG(salary) AS avg_salary FROM employee;",
+    "expected_columns": ["avg_salary"]
+  },
+  {
+    "title": "Maximum Salary",
+    "description": "Find the highest salary among employees.",
+    "skill": "Aggregation",
+    "difficulty": "Easy",
+    "reference_query": "SELECT MAX(salary) AS max_salary FROM employee;",
+    "expected_columns": ["max_salary"]
+  },
+  {
+    "title": "Minimum Salary",
+    "description": "Find the lowest salary among employees.",
+    "skill": "Aggregation",
+    "difficulty": "Easy",
+    "reference_query": "SELECT MIN(salary) AS min_salary FROM employee;",
+    "expected_columns": ["min_salary"]
+  },
+  {
+    "title": "Salary Sum",
+    "description": "Calculate total salary paid to all employees.",
+    "skill": "Aggregation",
+    "difficulty": "Easy",
+    "reference_query": "SELECT SUM(salary) AS total_salary FROM employee;",
+    "expected_columns": ["total_salary"]
+  },
+  {
+    "title": "Department Count",
+    "description": "Count number of employees per department.",
+    "skill": "Aggregation",
+    "difficulty": "Easy",
+    "reference_query": "SELECT department, COUNT(*) AS emp_count FROM employee GROUP BY department;",
+    "expected_columns": ["department","emp_count"]
+  },
+  {
+    "title": "Department Average Salary",
+    "description": "Find average salary per department.",
+    "skill": "Aggregation",
+    "difficulty": "Easy",
+    "reference_query": "SELECT department, AVG(salary) AS avg_salary FROM employee GROUP BY department;",
+    "expected_columns": ["department","avg_salary"]
+  },
+  {
+    "title": "Department Max Salary",
+    "description": "Find highest salary per department.",
+    "skill": "Aggregation",
+    "difficulty": "Easy",
+    "reference_query": "SELECT department, MAX(salary) AS max_salary FROM employee GROUP BY department;",
+    "expected_columns": ["department","max_salary"]
+  },
+  {
+    "title": "Departments With Multiple Employees",
+    "description": "List departments having more than one employee.",
+    "skill": "Aggregation",
+    "difficulty": "Medium",
+    "reference_query": "SELECT department, COUNT(*) AS emp_count FROM employee GROUP BY department HAVING COUNT(*) > 1;",
+    "expected_columns": ["department","emp_count"]
+  },
+  {
+    "title": "Departments With High Average Salary",
+    "description": "List departments where average salary exceeds 70000.",
+    "skill": "Aggregation",
+    "difficulty": "Medium",
+    "reference_query": "SELECT department, AVG(salary) AS avg_salary FROM employee GROUP BY department HAVING AVG(salary) > 70000;",
+    "expected_columns": ["department","avg_salary"]
+  },
+  {
+    "title": "Total Salary By Department",
+    "description": "Show total salary paid by each department.",
+    "skill": "Aggregation",
+    "difficulty": "Medium",
+    "reference_query": "SELECT department, SUM(salary) AS total_salary FROM employee GROUP BY department;",
+    "expected_columns": ["department","total_salary"]
+  },
+  {
+    "title": "Employee Count Above Threshold",
+    "description": "List departments with more than 2 employees.",
+    "skill": "Aggregation",
+    "difficulty": "Medium",
+    "reference_query": "SELECT department, COUNT(*) AS emp_count FROM employee GROUP BY department HAVING COUNT(*) > 2;",
+    "expected_columns": ["department","emp_count"]
+  },
+  {
+    "title": "Salary Variance Per Department",
+    "description": "Find difference between max and min salary per department.",
+    "skill": "Aggregation",
+    "difficulty": "Medium",
+    "reference_query": "SELECT department, MAX(salary) - MIN(salary) AS salary_diff FROM employee GROUP BY department;",
+    "expected_columns": ["department","salary_diff"]
+  },
+  {
+    "title": "Departments With Salary Sum Above Limit",
+    "description": "List departments where total salary exceeds 150000.",
+    "skill": "Aggregation",
+    "difficulty": "Medium",
+    "reference_query": "SELECT department, SUM(salary) AS total_salary FROM employee GROUP BY department HAVING SUM(salary) > 150000;",
+    "expected_columns": ["department","total_salary"]
+  },
+  {
+    "title": "Average Salary Of Managers",
+    "description": "Find average salary of employees who are managers.",
+    "skill": "Aggregation",
+    "difficulty": "Medium",
+    "reference_query": "SELECT AVG(salary) AS avg_salary FROM employee WHERE emp_id IN (SELECT DISTINCT manager_id FROM employee WHERE manager_id IS NOT NULL);",
+    "expected_columns": ["avg_salary"]
+  },
+  {
+    "title": "Department Salary Ranking",
+    "description": "Rank departments by average salary in descending order.",
+    "skill": "Aggregation",
+    "difficulty": "Hard",
+    "reference_query": "SELECT department, AVG(salary) AS avg_salary FROM employee GROUP BY department ORDER BY avg_salary DESC;",
+    "expected_columns": ["department","avg_salary"]
+  },
+  {
+    "title": "Employees Above Department Average",
+    "description": "Count employees earning above their department average.",
+    "skill": "Aggregation",
+    "difficulty": "Hard",
+    "reference_query": "SELECT COUNT(*) AS emp_count FROM employee e WHERE salary > (SELECT AVG(salary) FROM employee WHERE department=e.department);",
+    "expected_columns": ["emp_count"]
+  },
+  {
+    "title": "Department With Highest Average Salary",
+    "description": "Find department having the highest average salary.",
+    "skill": "Aggregation",
+    "difficulty": "Hard",
+    "reference_query": "SELECT department FROM employee GROUP BY department ORDER BY AVG(salary) DESC LIMIT 1;",
+    "expected_columns": ["department"]
+  },
+  {
+    "title": "Manager Count",
+    "description": "Count number of managers.",
+    "skill": "Aggregation",
+    "difficulty": "Hard",
+    "reference_query": "SELECT COUNT(DISTINCT manager_id) AS manager_count FROM employee WHERE manager_id IS NOT NULL;",
+    "expected_columns": ["manager_count"]
+  },
+  {
+    "title": "Median Salary Approximation",
+    "description": "Find approximate median salary using average of middle salaries.",
+    "skill": "Aggregation",
+    "difficulty": "Hard",
+    "reference_query": "SELECT AVG(salary) AS median_salary FROM (SELECT salary FROM employee ORDER BY salary LIMIT 4 OFFSET 2);",
+    "expected_columns": ["median_salary"]
+  },
+  {
+    "title": "Employee Manager Names",
+    "description": "List employee names along with their manager names.",
+    "skill": "Joins",
+    "difficulty": "Easy",
+    "reference_query": "SELECT e.emp_name AS employee, m.emp_name AS manager FROM employee e JOIN employee m ON e.manager_id = m.emp_id;",
+    "expected_columns": ["employee","manager"]
+  },
+  {
+    "title": "Employees With Managers",
+    "description": "List employees who have a manager.",
+    "skill": "Joins",
+    "difficulty": "Easy",
+    "reference_query": "SELECT e.emp_name FROM employee e JOIN employee m ON e.manager_id = m.emp_id;",
+    "expected_columns": ["emp_name"]
+  },
+  {
+    "title": "Manager Employee Pairs",
+    "description": "Show manager and employee pairs.",
+    "skill": "Joins",
+    "difficulty": "Easy",
+    "reference_query": "SELECT m.emp_name AS manager, e.emp_name AS employee FROM employee e JOIN employee m ON e.manager_id = m.emp_id;",
+    "expected_columns": ["manager","employee"]
+  },
+  {
+    "title": "Employees Without Managers",
+    "description": "List employees without managers.",
+    "skill": "Joins",
+    "difficulty": "Easy",
+    "reference_query": "SELECT emp_name FROM employee WHERE manager_id IS NULL;",
+    "expected_columns": ["emp_name"]
+  },
+  {
+    "title": "Employee Department",
+    "description": "List employee names with their departments.",
+    "skill": "Joins",
+    "difficulty": "Easy",
+    "reference_query": "SELECT emp_name, department FROM employee;",
+    "expected_columns": ["emp_name","department"]
+  },
+  {
+    "title": "Managers Only",
+    "description": "List names of managers.",
+    "skill": "Joins",
+    "difficulty": "Easy",
+    "reference_query": "SELECT DISTINCT m.emp_name FROM employee e JOIN employee m ON e.manager_id = m.emp_id;",
+    "expected_columns": ["emp_name"]
+  },
+  {
+    "title": "Employee Salary With Manager",
+    "description": "Show employee salary with manager name.",
+    "skill": "Joins",
+    "difficulty": "Easy",
+    "reference_query": "SELECT e.emp_name, e.salary, m.emp_name AS manager FROM employee e JOIN employee m ON e.manager_id = m.emp_id;",
+    "expected_columns": ["emp_name","salary","manager"]
+  },
+  {
+    "title": "Manager Count Using Join",
+    "description": "Count distinct managers using join.",
+    "skill": "Joins",
+    "difficulty": "Easy",
+    "reference_query": "SELECT COUNT(DISTINCT m.emp_id) AS manager_count FROM employee e JOIN employee m ON e.manager_id = m.emp_id;",
+    "expected_columns": ["manager_count"]
+  },
+  {
+    "title": "Employees Earning Less Than Manager",
+    "description": "List employees earning less than their manager.",
+    "skill": "Joins",
+    "difficulty": "Medium",
+    "reference_query": "SELECT e.emp_name, e.salary FROM employee e JOIN employee m ON e.manager_id = m.emp_id WHERE e.salary < m.salary;",
+    "expected_columns": ["emp_name","salary"]
+  },
+  {
+    "title": "Manager Salary Comparison",
+    "description": "Show employee and manager salaries side by side.",
+    "skill": "Joins",
+    "difficulty": "Medium",
+    "reference_query": "SELECT e.emp_name AS employee, e.salary AS emp_salary, m.emp_name AS manager, m.salary AS mgr_salary FROM employee e JOIN employee m ON e.manager_id = m.emp_id;",
+    "expected_columns": ["employee","emp_salary","manager","mgr_salary"]
+  },
+  {
+    "title": "Employees With Same Department As Manager",
+    "description": "List employees whose department matches their manager's department.",
+    "skill": "Joins",
+    "difficulty": "Medium",
+    "reference_query": "SELECT e.emp_name FROM employee e JOIN employee m ON e.manager_id = m.emp_id WHERE e.department = m.department;",
+    "expected_columns": ["emp_name"]
+  },
+  {
+    "title": "Manager Employee Count",
+    "description": "Count number of employees reporting to each manager.",
+    "skill": "Joins",
+    "difficulty": "Medium",
+    "reference_query": "SELECT m.emp_name AS manager, COUNT(*) AS emp_count FROM employee e JOIN employee m ON e.manager_id = m.emp_id GROUP BY m.emp_name;",
+    "expected_columns": ["manager","emp_count"]
+  },
+  {
+    "title": "Employees With Higher Salary Than Manager Average",
+    "description": "List employees earning more than average manager salary.",
+    "skill": "Joins",
+    "difficulty": "Medium",
+    "reference_query": "SELECT emp_name, salary FROM employee WHERE salary > (SELECT AVG(salary) FROM employee WHERE emp_id IN (SELECT DISTINCT manager_id FROM employee WHERE manager_id IS NOT NULL));",
+    "expected_columns": ["emp_name","salary"]
+  },
+  {
+    "title": "Employee Manager Department",
+    "description": "List employee names with manager department.",
+    "skill": "Joins",
+    "difficulty": "Medium",
+    "reference_query": "SELECT e.emp_name, m.department AS manager_department FROM employee e JOIN employee m ON e.manager_id = m.emp_id;",
+    "expected_columns": ["emp_name","manager_department"]
+  },
+  {
+    "title": "Managers With More Than One Report",
+    "description": "List managers having more than one direct report.",
+    "skill": "Joins",
+    "difficulty": "Medium",
+    "reference_query": "SELECT m.emp_name FROM employee e JOIN employee m ON e.manager_id = m.emp_id GROUP BY m.emp_name HAVING COUNT(*) > 1;",
+    "expected_columns": ["emp_name"]
+  },
+  {
+    "title": "Highest Paid Employee Per Manager",
+    "description": "Find highest paid employee reporting to each manager.",
+    "skill": "Joins",
+    "difficulty": "Hard",
+    "reference_query": "SELECT m.emp_name AS manager, MAX(e.salary) AS max_salary FROM employee e JOIN employee m ON e.manager_id = m.emp_id GROUP BY m.emp_name;",
+    "expected_columns": ["manager","max_salary"]
+  },
+  {
+    "title": "Managers With Higher Salary Than Reports",
+    "description": "List managers earning more than all their direct reports.",
+    "skill": "Joins",
+    "difficulty": "Hard",
+    "reference_query": "SELECT m.emp_name FROM employee m JOIN employee e ON e.manager_id = m.emp_id GROUP BY m.emp_name HAVING MAX(e.salary) < m.salary;",
+    "expected_columns": ["emp_name"]
+  },
+  {
+    "title": "Employees Sharing Manager",
+    "description": "List pairs of employees sharing the same manager.",
+    "skill": "Joins",
+    "difficulty": "Hard",
+    "reference_query": "SELECT e1.emp_name AS emp1, e2.emp_name AS emp2 FROM employee e1 JOIN employee e2 ON e1.manager_id = e2.manager_id WHERE e1.emp_id < e2.emp_id AND e1.manager_id IS NOT NULL;",
+    "expected_columns": ["emp1","emp2"]
+  },
+  {
+    "title": "Manager With Highest Team Salary",
+    "description": "Find manager whose team has the highest total salary.",
+    "skill": "Joins",
+    "difficulty": "Hard",
+    "reference_query": "SELECT m.emp_name FROM employee e JOIN employee m ON e.manager_id = m.emp_id GROUP BY m.emp_name ORDER BY SUM(e.salary) DESC LIMIT 1;",
+    "expected_columns": ["emp_name"]
+  },
+  {
+    "title": "Employees Earning Less Than Department Manager",
+    "description": "List employees earning less than their department manager.",
+    "skill": "Joins",
+    "difficulty": "Hard",
+    "reference_query": "SELECT e.emp_name, e.salary FROM employee e JOIN employee m ON e.manager_id = m.emp_id WHERE e.salary < m.salary;",
+    "expected_columns": ["emp_name","salary"]
+  }
+]

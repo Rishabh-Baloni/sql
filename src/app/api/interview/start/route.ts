@@ -12,9 +12,16 @@ import { generateInterviewSet } from '@/server/interview/questionSource';
  * - 50% from bank, 50% from AI
  * - Ignores learning profile completely
  */
-export async function POST() {
+export async function POST(req: Request) {
   try {
-    const questions = await generateInterviewSet();
+    let source: 'ai' | 'bank' | 'hybrid' = 'hybrid';
+    try {
+      const body = await req.json();
+      if (body && (body.source === 'ai' || body.source === 'bank' || body.source === 'hybrid')) {
+        source = body.source;
+      }
+    } catch {}
+    const questions = await generateInterviewSet(source);
 
     if (questions.length !== 3) {
       throw new Error('Failed to generate complete interview set');

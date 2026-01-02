@@ -21,13 +21,15 @@ import { Skill, Difficulty } from '@/server/ai/questionGenerator';
  * - Random skill → Medium
  * - Strong skill → Medium or Hard
  */
-export async function GET() {
+export async function GET(req: Request) {
   try {
     // Get learning profile
     const profile = getWeaknessProfile();
 
     let targetSkill: Skill | undefined;
     let targetDifficulty: Difficulty | undefined;
+    const url = new URL(req.url);
+    const source = (url.searchParams.get('source') as 'ai' | 'bank' | 'hybrid') || 'hybrid';
 
     // Cold start: No learning profile yet
     if (profile.length === 0 || profile.every(p => p.attempts === 0)) {
@@ -63,8 +65,7 @@ export async function GET() {
       }
     }
 
-    // Get question using hybrid source
-    const question = await getHybridQuestion(targetSkill, targetDifficulty);
+    const question = await getHybridQuestion(targetSkill, targetDifficulty, source);
 
     if (!question) {
       return NextResponse.json(
@@ -74,6 +75,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
+      id: question.id,
       title: question.title,
       description: question.description,
       referenceQuery: question.referenceQuery,

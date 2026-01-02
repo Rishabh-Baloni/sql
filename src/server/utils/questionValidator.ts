@@ -77,10 +77,16 @@ export async function generateAndValidate(
 ): Promise<GeneratedQuestion | null> {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
+      console.log('[Phase-6] Generating AI question (attempt', attempt, '/', maxAttempts, ')');
       const question = await generateFn();
       const validation = validateGeneratedQuestion(question);
 
       if (validation.isValid) {
+        console.log('[Phase-6] Validation success', {
+          skill: question.skill,
+          difficulty: question.difficulty,
+          problem: `${question.problem.substring(0, 60)}...`
+        });
         return question;
       }
 

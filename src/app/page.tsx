@@ -48,12 +48,16 @@ export default function Home() {
   // Phase 4: Learning Intelligence State
   const [weaknesses, setWeaknesses] = useState<any[]>([]);
   const [recommendation, setRecommendation] = useState<{ questionId: number; reason: string } | null>(null);
+  const [practiceQuestion, setPracticeQuestion] = useState<any | null>(null);
 
   // Phase 5: Interview Mode State
   const [interviewStatus, setInterviewStatus] = useState<'idle' | 'active' | 'finished'>('idle');
   const [timeLeft, setTimeLeft] = useState(15 * 60); // 15 minutes
   const [interviewResults, setInterviewResults] = useState<any[]>([]);
   const [interviewQuestionIndex, setInterviewQuestionIndex] = useState(0);
+  const [interviewQuestions, setInterviewQuestions] = useState<any[]>([]);
+  const [interviewReferences, setInterviewReferences] = useState<string[]>([]);
+  const [aiOnly, setAiOnly] = useState(false);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -67,15 +71,25 @@ export default function Home() {
     return () => clearInterval(timer);
   }, [mode, interviewStatus, timeLeft]);
 
-  const startInterview = () => {
-    setInterviewStatus('active');
-    setInterviewQuestionIndex(0);
-    setCurrentQuestionId(PRACTICE_QUESTIONS[0].id);
-    setTimeLeft(15 * 60);
-    setInterviewResults([]);
-    setQuery('');
-    setResults([]);
-    setHasRun(false);
+  const startInterview = async () => {
+    try {
+      const res = await fetch('/api/interview/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: aiOnly ? 'ai' : 'bank' }) });
+      if (res.ok) {
+        const data = await res.json();
+        setInterviewQuestions(data.questions || []);
+        setInterviewReferences((data._serverData && data._serverData.referenceQueries) || []);
+        setInterviewStatus('active');
+        setInterviewQuestionIndex(0);
+        setCurrentQuestionId(1);
+        setTimeLeft(15 * 60);
+        setInterviewResults([]);
+        setQuery('');
+        setResults([]);
+        setHasRun(false);
+      }
+    } catch (err) {
+      console.error('Failed to start interview', err);
+    }
   };
 
   const formatTime = (seconds: number) => {
@@ -98,6 +112,19 @@ export default function Home() {
     }
   };
 
+  const fetchPracticeQuestion = async () => {
+    try {
+      const res = await fetch(`/api/practice/question?source=${aiOnly ? 'ai' : 'bank'}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPracticeQuestion(data);
+        setCurrentQuestionId(data.id ?? 0);
+      }
+    } catch (err) {
+      console.error('Failed to fetch practice question', err);
+    }
+  };
+
   // Fetch profile when entering practice mode
   const toggleMode = (newMode: 'normal' | 'practice' | 'interview') => {
     setMode(newMode);
@@ -110,6 +137,7 @@ export default function Home() {
     
     if (newMode === 'practice') {
       fetchProfile();
+      fetchPracticeQuestion();
     }
     if (newMode === 'interview') {
       setInterviewStatus('idle');
@@ -132,15 +160,26 @@ export default function Home() {
     setHasRun(true);
 
     try {
+      if (mode === 'practice') {
+        if (!practiceQuestion?.id) {
+          setError('Missing questionId');
+          return;
+        }
+        if (!query.trim()) {
+          setError('Missing query');
+          return;
+        }
+      }
       let url = '/api/sql';
       let body: any = { query };
 
       if (mode === 'practice') {
         url = '/api/learning/submit';
-        body = { query, questionId: currentQuestionId };
+        body = { query, questionId: (practiceQuestion?.id ?? currentQuestionId), referenceQuery: practiceQuestion?.referenceQuery };
       } else if (mode === 'interview') {
         url = '/api/interview/submit';
-        body = { query, questionId: currentQuestionId };
+        const ref = interviewReferences[interviewQuestionIndex];
+        body = { query, questionId: interviewQuestionIndex + 1, referenceQuery: ref };
       }
 
       const res = await fetch(url, {
@@ -168,34 +207,37 @@ export default function Home() {
         // Fetch updated profile after submission to update weak areas and recommendations
         fetchProfile();
 
-        // Trigger AI Explanation if incorrect
-        if (!data.isCorrect) {
-          setAiLoading(true);
-          // Non-blocking call to AI
-          fetch('/api/ai/explain', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+          // Trigger AI Explanation if incorrect
+          if (!data.isCorrect) {
+            setAiLoading(true);
+            // Non-blocking call to AI
+            fetch('/api/ai/explain', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
               questionId: currentQuestionId,
               userQuery: query,
-              errorMessage: data.message
+              errorMessage: data.message,
+              source: displayedPractice?.source || 'bank',
+              title: displayedPractice?.title,
+              description: displayedPractice?.description,
+              referenceQuery: displayedPractice?.referenceQuery
+              })
             })
-          })
-          .then(res => res.json())
-          .then(aiData => {
-            if (aiData.explanation) {
-              setAiExplanation(aiData);
-            }
-          })
-          .catch(err => console.error('AI Error:', err))
-          .finally(() => setAiLoading(false));
-        }
+            .then(res => res.json())
+            .then(aiData => {
+              if (aiData.explanation) {
+                setAiExplanation(aiData);
+              }
+            })
+            .catch(err => console.error('AI Error:', err))
+            .finally(() => setAiLoading(false));
+          }
 
       } else if (mode === 'interview') {
-         // Store result internally
          const newResult = {
-           questionId: currentQuestionId,
-           questionTitle: currentQuestion?.title,
+           questionId: interviewQuestionIndex + 1,
+           questionTitle: interviewQuestions[interviewQuestionIndex]?.title,
            isCorrect: data.isCorrect,
            message: data.message,
            query: query
@@ -203,11 +245,10 @@ export default function Home() {
          const updatedResults = [...interviewResults, newResult];
          setInterviewResults(updatedResults);
          
-         // Move to next question or finish
          const nextIndex = interviewQuestionIndex + 1;
-         if (nextIndex < PRACTICE_QUESTIONS.length) {
+         if (nextIndex < interviewQuestions.length) {
             setInterviewQuestionIndex(nextIndex);
-            setCurrentQuestionId(PRACTICE_QUESTIONS[nextIndex].id);
+            setCurrentQuestionId(nextIndex + 1);
             setQuery('');
             setResults([]); 
             setHasRun(false);
@@ -226,7 +267,8 @@ export default function Home() {
     }
   };
 
-  const currentQuestion = PRACTICE_QUESTIONS.find(q => q.id === currentQuestionId);
+  const displayedPractice = practiceQuestion ? practiceQuestion : PRACTICE_QUESTIONS.find(q => q.id === currentQuestionId);
+  const displayedInterview = interviewStatus === 'active' ? interviewQuestions[interviewQuestionIndex] : null;
 
   return (
     <main className="flex h-screen flex-col bg-gray-950 text-white">
@@ -240,7 +282,7 @@ export default function Home() {
            </div>
            
            {/* Mode Toggle */}
-           <div className="flex bg-gray-800 rounded-lg p-1 ml-4">
+          <div className="flex bg-gray-800 rounded-lg p-1 ml-4">
              <button
                onClick={() => toggleMode('normal')}
                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${mode === 'normal' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
@@ -258,18 +300,28 @@ export default function Home() {
                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${mode === 'interview' ? 'bg-orange-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
              >
                Interview
-             </button>
-           </div>
+           </button>
+          </div>
+          
+          <div className="ml-4 flex items-center gap-2">
+            <span className="text-xs text-gray-400">Use AI</span>
+            <button
+              onClick={() => setAiOnly(v => !v)}
+              className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${aiOnly ? 'bg-teal-600 text-white' : 'bg-gray-800 text-gray-300 border border-gray-700'}`}
+            >
+              {aiOnly ? 'On' : 'Off'}
+            </button>
+          </div>
         </div>
 
         <div className="space-x-3">
             <button 
-                onClick={runQuery} 
-                disabled={loading || (mode === 'interview' && interviewStatus !== 'active')}
-                className={`${mode === 'practice' ? 'bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800' : mode === 'interview' ? 'bg-orange-600 hover:bg-orange-700 disabled:bg-orange-800' : 'bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800'} disabled:cursor-not-allowed px-4 py-2 rounded text-sm font-semibold transition-colors flex items-center gap-2 text-white`}
+               onClick={runQuery} 
+               disabled={loading || (mode === 'interview' && interviewStatus !== 'active') || (mode === 'practice' && (!practiceQuestion?.id || !query.trim()))}
+               className={`${mode === 'practice' ? 'bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800' : mode === 'interview' ? 'bg-orange-600 hover:bg-orange-700 disabled:bg-orange-800' : 'bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800'} disabled:cursor-not-allowed px-4 py-2 rounded text-sm font-semibold transition-colors flex items-center gap-2 text-white`}
             >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                {loading ? 'Running...' : (mode === 'practice' || mode === 'interview' ? 'Submit Answer' : 'Run Query')}
+               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+               {loading ? 'Running...' : (mode === 'practice' || mode === 'interview' ? 'Submit Answer' : 'Run Query')}
             </button>
              <button 
                 onClick={() => setQuery('')} 
@@ -288,37 +340,30 @@ export default function Home() {
             {mode === 'practice' && (
               <div className="bg-gray-900 border-b border-gray-800 p-4">
                 <div className="flex justify-between items-start mb-2">
-                  <h2 className="text-purple-400 font-bold text-sm uppercase tracking-wider">Problem {currentQuestion?.id}</h2>
-                  <div className="flex gap-2">
-                     <select 
-                       className="bg-gray-800 border border-gray-700 text-xs rounded px-2 py-1 text-gray-300"
-                       value={currentQuestionId}
-                       onChange={(e) => {
-                         setCurrentQuestionId(Number(e.target.value));
-                         setQuery('');
-                         setResults([]);
-                         setHasRun(false);
-                         setPracticeFeedback(null);
-                         setError(null);
-                       }}
-                     >
-                       {PRACTICE_QUESTIONS.map(q => (
-                         <option key={q.id} value={q.id}>
-                           Problem {q.id} {recommendation?.questionId === q.id ? '(Recommended)' : ''}
-                         </option>
-                       ))}
-                     </select>
-                  </div>
+                  <h2 className="text-purple-400 font-bold text-sm uppercase tracking-wider">Practice</h2>
+                  <button
+                    onClick={fetchPracticeQuestion}
+                    className="bg-gray-800 hover:bg-gray-700 border border-gray-700 px-2 py-1 rounded text-xs text-gray-300"
+                  >
+                    New Question
+                  </button>
                 </div>
                 <h3 className="text-lg font-semibold text-white mb-1">
-                  {currentQuestion?.title}
+                  {displayedPractice?.title}
                   {recommendation?.questionId === currentQuestionId && (
                     <span className="ml-2 bg-blue-600/20 text-blue-400 text-xs px-2 py-0.5 rounded border border-blue-600/30">
                       Recommended
                     </span>
                   )}
                 </h3>
-                <p className="text-gray-400 text-sm leading-relaxed mb-3">{currentQuestion?.description}</p>
+                <p className="text-gray-400 text-sm leading-relaxed mb-3">{displayedPractice?.description}</p>
+                {displayedPractice && (
+                  <div className="flex gap-2 text-xs text-gray-400 mb-2">
+                    <span className="px-2 py-0.5 rounded bg-gray-800 border border-gray-700">Source: {displayedPractice.source || 'bank'}</span>
+                    {displayedPractice.skill && <span className="px-2 py-0.5 rounded bg-gray-800 border border-gray-700">{displayedPractice.skill}</span>}
+                    {displayedPractice.difficulty && <span className="px-2 py-0.5 rounded bg-gray-800 border border-gray-700">{displayedPractice.difficulty}</span>}
+                  </div>
+                )}
                 
                 <div className="bg-gray-800/50 rounded p-2 text-xs font-mono text-gray-500 mb-4">
                   <span className="text-gray-400 font-bold">Schema: </span>
@@ -373,15 +418,15 @@ export default function Home() {
                     <div className="w-full text-left">
                         <div className="flex justify-between items-center mb-4 border-b border-gray-800 pb-2">
                            <h2 className="text-orange-400 font-bold text-sm uppercase tracking-wider">
-                              Question {interviewQuestionIndex + 1} of {PRACTICE_QUESTIONS.length}
+                              Question {interviewQuestionIndex + 1} of {interviewQuestions.length || 3}
                            </h2>
                            <div className={`font-mono font-bold text-lg ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-gray-300'}`}>
                               {formatTime(timeLeft)}
                            </div>
                         </div>
                         
-                        <h3 className="text-lg font-semibold text-white mb-2">{currentQuestion?.title}</h3>
-                        <p className="text-gray-400 text-sm leading-relaxed mb-4">{currentQuestion?.description}</p>
+                        <h3 className="text-lg font-semibold text-white mb-2">{displayedInterview?.title}</h3>
+                        <p className="text-gray-400 text-sm leading-relaxed mb-4">{displayedInterview?.description}</p>
                          <div className="bg-gray-800/50 rounded p-2 text-xs font-mono text-gray-500">
                            <span className="text-gray-400 font-bold">Schema: </span>
                            employee(emp_id, emp_name, department, salary, manager_id)

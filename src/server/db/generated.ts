@@ -38,11 +38,26 @@ export function storeGeneratedQuestion(question: GeneratedQuestion): number {
     JSON.stringify(question.expected_columns)
   );
 
+  console.log('[Phase-6] Stored AI question', {
+    skill: question.skill,
+    difficulty: question.difficulty,
+    problem: `${question.problem.substring(0, 60)}...`
+  });
   return result.lastInsertRowid as number;
 }
 
 // Get a stored question by skill and difficulty
-export function getStoredQuestion(skill?: Skill, difficulty?: Difficulty): GeneratedQuestion | null {
+export interface StoredQuestion {
+  id: number;
+  skill: Skill;
+  difficulty: Difficulty;
+  problem: string;
+  schema: string;
+  reference_query: string;
+  expected_columns: string[];
+}
+
+export function getStoredQuestion(skill?: Skill, difficulty?: Difficulty, excludeProblems?: string[]): StoredQuestion | null {
   let query = 'SELECT * FROM generated_questions WHERE 1=1';
   const params: any[] = [];
 
@@ -56,6 +71,12 @@ export function getStoredQuestion(skill?: Skill, difficulty?: Difficulty): Gener
     params.push(difficulty);
   }
 
+  if (excludeProblems && excludeProblems.length > 0) {
+    const placeholders = excludeProblems.map(() => '?').join(', ');
+    query += ` AND problem NOT IN (${placeholders})`;
+    params.push(...excludeProblems);
+  }
+
   // Prefer questions with lower usage count
   query += ' ORDER BY usage_count ASC, created_at ASC LIMIT 1';
 
@@ -64,7 +85,8 @@ export function getStoredQuestion(skill?: Skill, difficulty?: Difficulty): Gener
 
   if (!row) return null;
 
-  return {
+  const result: StoredQuestion = {
+    id: row.id,
     skill: row.skill,
     difficulty: row.difficulty,
     problem: row.problem,
@@ -72,6 +94,7 @@ export function getStoredQuestion(skill?: Skill, difficulty?: Difficulty): Gener
     reference_query: row.reference_query,
     expected_columns: JSON.parse(row.expected_columns)
   };
+  return result;
 }
 
 // Increment usage count when a question is served
@@ -108,3 +131,18 @@ export function getQuestionCount(skill?: Skill, difficulty?: Difficulty): number
 initGeneratedQuestionsDB();
 
 export default db;
+ 
+export function findGeneratedById(id: number): StoredQuestion | null {
+  const stmt = db.prepare('SELECT * FROM generated_questions WHERE id = ?');
+  const row = stmt.get(id) as any;
+  if (!row) return null;
+  return {
+    id: row.id,
+    skill: row.skill,
+    difficulty: row.difficulty,
+    problem: row.problem,
+    schema: row.schema,
+    reference_query: row.reference_query,
+    expected_columns: JSON.parse(row.expected_columns)
+  };
+}

@@ -2,6 +2,7 @@ import { QUESTIONS } from '../practice/questions';
 import { generateQuestion, Skill, Difficulty } from '../ai/questionGenerator';
 import { generateAndValidate } from '../utils/questionValidator';
 import { storeGeneratedQuestion, getStoredQuestion, incrementUsageCount } from '../db/generated';
+import { getBankQuestion as getBankDBQuestion } from '../db/bank';
 
 export interface InterviewQuestion {
   title: string;
@@ -23,7 +24,7 @@ export interface InterviewQuestion {
  * - Ignores learning profile completely
  * - Fair and unpredictable
  */
-export async function generateInterviewSet(): Promise<InterviewQuestion[]> {
+export async function generateInterviewSet(sourceMode: 'ai' | 'bank' | 'hybrid' = 'hybrid'): Promise<InterviewQuestion[]> {
   const skills: Skill[] = ['Filtering', 'Aggregation', 'Joins'];
   const difficulties: Difficulty[] = ['Easy', 'Medium', 'Hard'];
 
@@ -38,7 +39,7 @@ export async function generateInterviewSet(): Promise<InterviewQuestion[]> {
     const skill = shuffledSkills[i];
     const difficulty = shuffledDifficulties[i];
 
-    const question = await getInterviewQuestion(skill, difficulty);
+    const question = await getInterviewQuestion(skill, difficulty, sourceMode);
     if (question) {
       questions.push(question);
     } else {
@@ -56,15 +57,20 @@ export async function generateInterviewSet(): Promise<InterviewQuestion[]> {
  */
 async function getInterviewQuestion(
   skill: Skill,
-  difficulty: Difficulty
+  difficulty: Difficulty,
+  sourceMode: 'ai' | 'bank' | 'hybrid' = 'hybrid'
 ): Promise<InterviewQuestion | null> {
-  // Randomly choose source (50% bank, 50% AI)
-  const useBank = Math.random() < 0.5;
+  const useBank = sourceMode === 'hybrid' ? (Math.random() < 0.5) : sourceMode === 'bank';
 
   if (useBank) {
     const bankQ = getBankInterviewQuestion(skill, difficulty);
     if (bankQ) return bankQ;
-    // If bank fails, fallback to AI
+    // If bank-only mode, try any difficulty for the skill, then give up
+    if (sourceMode === 'bank') {
+      const anyBank = getBankInterviewQuestion(skill, undefined as any);
+      return anyBank || null;
+    }
+    // In hybrid mode, allow AI fallback
   }
 
   // Try AI generation
@@ -78,27 +84,15 @@ async function getInterviewQuestion(
 /**
  * Get a question from the bank for interview.
  */
-function getBankInterviewQuestion(skill: Skill, difficulty: Difficulty): InterviewQuestion | null {
-  // Map bank questions to skill/difficulty
-  // Q1 = Filtering, Easy
-  // Q2 = Aggregation, Medium
-  // Q3 = Joins, Hard
-
-  const mapping = [
-    { q: QUESTIONS[0], skill: 'Filtering' as Skill, difficulty: 'Easy' as Difficulty },
-    { q: QUESTIONS[1], skill: 'Aggregation' as Skill, difficulty: 'Medium' as Difficulty },
-    { q: QUESTIONS[2], skill: 'Joins' as Skill, difficulty: 'Hard' as Difficulty }
-  ];
-
-  const match = mapping.find(m => m.skill === skill && m.difficulty === difficulty);
-  if (!match) return null;
-
+function getBankInterviewQuestion(skill: Skill, difficulty?: Difficulty): InterviewQuestion | null {
+  const dbQ = getBankDBQuestion(skill, difficulty, []);
+  if (!dbQ) return null;
   return {
-    title: match.q.title,
-    description: match.q.description,
-    referenceQuery: match.q.referenceQuery,
-    skill,
-    difficulty,
+    title: dbQ.title,
+    description: dbQ.problem,
+    referenceQuery: dbQ.reference_query,
+    skill: dbQ.skill,
+    difficulty: dbQ.difficulty,
     source: 'bank'
   };
 }
